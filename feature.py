@@ -15,88 +15,35 @@
 # ==============================================================================
 
 import os
-from rawdata import RawData, read_sample_data
-from dataset import DataSet
-from chart import extract_feature
-import numpy
-
-
-def extract_from_file(filepath, output_prefix):
-    days_for_test = 700
-    input_shape = [30, 61]  # [length of time series, length of feature]
+from chart1 import extract_feature
+import  pandas as pd
+def extract_from_file(filepath, output_prefix,
+                      days_for_test = 700,
+                      input_shape = [30, 61] ,
+                      selector = ["ROCP", "OROCP", "HROCP", "LROCP", "MACD", "RSI", "VROCP", "BOLL", "MA", "VMA", "PRICE_VOLUME"]):
     window = input_shape[0]
-    fp = open("%s_feature.%s" % (output_prefix, window), "w")
-    lp = open("%s_label.%s" % (output_prefix, window), "w")
-    fpt = open("%s_feature.test.%s" % (output_prefix, window), "w")
-    lpt = open("%s_label.test.%s" % (output_prefix, window), "w")
-
-    selector = ["ROCP", "OROCP", "HROCP", "LROCP", "MACD", "RSI", "VROCP", "BOLL", "MA", "VMA", "PRICE_VOLUME"]
-
-    raw_data = read_sample_data(filepath)
-    moving_features, moving_labels = extract_feature(raw_data=raw_data, selector=selector, window=input_shape[0],
-                                                     with_label=True, flatten=True)
+    #first column  must  date
+    df=pd.read_csv(filepath,sep='\s+' ,parse_dates = True )
+    df.sort_index(inplace=True)
+    moving_features, moving_labels = extract_feature(raw_data=df, selector=selector, window=input_shape[0],with_label=True, flatten=True)
     print("feature extraction done, start writing to file...")
     train_end_test_begin = moving_features.shape[0] - days_for_test
     if train_end_test_begin < 0:
         train_end_test_begin = 0
-    for i in range(0, train_end_test_begin):
-        for item in moving_features[i]:
-            fp.write("%s\t" % item)
-        fp.write("\n")
-    for i in range(0, train_end_test_begin):
-        lp.write("%s\n" % moving_labels[i])
-    # test set
-    for i in range(train_end_test_begin, moving_features.shape[0]):
-        for item in moving_features[i]:
-            fpt.write("%s\t" % item)
-        fpt.write("\n")
-    for i in range(train_end_test_begin, moving_features.shape[0]):
-        lpt.write("%s\n" % moving_labels[i])
-
-    fp.close()
-    lp.close()
-    fpt.close()
-    lpt.close()
-
-
+    moving_features=pd.DataFrame(moving_features)
+    print(moving_features.head(100))
+    moving_labels = pd.DataFrame(moving_labels)
+    moving_features[0:train_end_test_begin].to_csv(output_prefix+"_feature."+str(window),header=None,index=False)
+    moving_labels[0:train_end_test_begin].to_csv(output_prefix+"_label."+str(window), header=None, index=False)
+    moving_features[train_end_test_begin: moving_features.shape[0]].to_csv(output_prefix+"_feature.test."+str(window),header=None,index=False)
+    moving_labels[train_end_test_begin: moving_features.shape[0]].to_csv(output_prefix+"_label.test."+str(window), header=None, index=False)
 if __name__ == '__main__':
-    days_for_test = 700
-    input_shape = [30, 61]  # [length of time series, length of feature]
-    window = input_shape[0]
-    fp = open("ultimate_feature.%s" % window, "w")
-    lp = open("ultimate_label.%s" % window, "w")
-    fpt = open("ultimate_feature.test.%s" % window, "w")
-    lpt = open("ultimate_label.test.%s" % window, "w")
-
-    selector = ["ROCP", "OROCP", "HROCP", "LROCP", "MACD", "RSI", "VROCP", "BOLL", "MA", "VMA", "PRICE_VOLUME"]
     dataset_dir = "./dataset"
     for filename in os.listdir(dataset_dir):
-        #if filename != '000001.csv':
-        #    continue
+        if filename != '000001.csv':
+           continue
         print("processing file: " + filename)
-        filepath = dataset_dir + "/" + filename
-        raw_data = read_sample_data(filepath)
-        moving_features, moving_labels = extract_feature(raw_data=raw_data, selector=selector, window=input_shape[0],
-                                                         with_label=True, flatten=True)
-        print("feature extraction done, start writing to file...")
-        train_end_test_begin = moving_features.shape[0] - days_for_test
-        if train_end_test_begin < 0:
-            train_end_test_begin = 0
-        for i in range(0, train_end_test_begin):
-            for item in moving_features[i]:
-                fp.write("%s\t" % item)
-            fp.write("\n")
-        for i in range(0, train_end_test_begin):
-            lp.write("%s\n" % moving_labels[i])
-        # test set
-        for i in range(train_end_test_begin, moving_features.shape[0]):
-            for item in moving_features[i]:
-                fpt.write("%s\t" % item)
-            fpt.write("\n")
-        for i in range(train_end_test_begin, moving_features.shape[0]):
-            lpt.write("%s\n" % moving_labels[i])
-
-    fp.close()
-    lp.close()
-    fpt.close()
-    lpt.close()
+        extract_from_file(dataset_dir+"//"+filename,filename.split(".")[0],
+                          days_for_test=700,
+                          input_shape=[30, 61],
+                          selector=["ROCP", "OROCP", "HROCP", "LROCP", "MACD", "RSI", "VROCP", "BOLL", "MA", "VMA","PRICE_VOLUME"])
